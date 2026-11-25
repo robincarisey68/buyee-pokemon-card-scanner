@@ -1,0 +1,92 @@
+# Réglages du scanner. Tout est modifiable ici, sans toucher au code.
+
+# Marge nette minimale (bénéfice / coût total d'achat). 0.35 = 35 %.
+min_margin: 0.35
+# Ignore les cartes dont le prix de revente en France est trop bas
+# (les frais fixes mangent toute la marge en dessous).
+min_resale_eur: 25
+
+# Recherches larges sur Mercari (le site que Buyee revend). Le scanner lit ces recherches,
+# identifie chaque carte, puis compare toutes les annonces de la même carte.
+search_queries:
+  - "ポケカ SAR"
+  - "ポケカ SR"
+  - "ポケカ AR"
+  - "ポケカ UR"
+  - "ポケモンカード SAR"
+  - "ポケカ CHR"
+# Pages lues par recherche large (les annonces les plus récentes d'abord).
+pages_per_query: 3
+# Pages lues pour comparer toutes les annonces d'une carte précise (les moins chères d'abord).
+pages_per_card: 10
+# Nombre maximum de cartes comparées en détail à chaque passage.
+max_cards_per_run: 8
+
+# États Mercari acceptés :
+# 1 = Neuf / non utilisé, 2 = Quasi neuf, 3 = Pas de rayures ni taches visibles
+# 4 = Quelques rayures, 5 = Rayures et taches, 6 = Mauvais état
+accepted_conditions: [1, 2, 3]
+
+# Mots qui excluent une annonce (lots, cartes gradées, fausses, boosters...).
+exclude_keywords:
+  - "まとめ"
+  - "オリパ"
+  - "BOX"
+  - "ボックス"
+  - "未開封"
+  - "シュリンク"
+  - "PSA"
+  - "BGS"
+  - "CGC"
+  - "ARS"
+  - "鑑定"
+  - "プロキシ"
+  - "ジャンク"
+  - "傷あり"
+  - "英語版"
+  - "韓国"
+  - "中国"
+  - "海外"
+
+# Mots qui excluent une annonce s'ils apparaissent dans la description.
+exclude_description_keywords:
+  - "傷あり"
+  - "白欠け"
+  - "折れ"
+  - "凹み"
+  - "ジャンク"
+
+# Marge de change prise par Buyee / ta carte bancaire, ajoutée au taux du jour (3 %).
+fx_markup: 0.03
+
+# Coûts d'achat (à ajuster avec tes vraies factures Buyee)
+costs:
+  # Frais de service Buyee par article (yens).
+  buyee_service_fee_jpy: 300
+  # Port au Japon si le vendeur ne le paie pas (yens).
+  domestic_shipping_jpy: 750
+  # Part du port international par carte, colis regroupé (yens).
+  international_shipping_per_card_jpy: 1500
+  # Taxe douanière UE forfaitaire par article (depuis le 1er juillet 2026).
+  eu_flat_duty_eur: 3.0
+  # TVA à l'import en France.
+  import_vat_rate: 0.20
+  # Frais de dossier du transporteur à l'import (0 si aucun).
+  import_handling_eur: 0.0
+
+# Coûts de revente en France
+resale:
+  # Commission de la plateforme de vente (Cardmarket ≈ 5 %).
+  marketplace_fee_rate: 0.05
+  # Envoi de la carte à l'acheteur (lettre suivie).
+  shipping_to_buyer_eur: 2.0
+  # Exige des ventes récentes sur Cardmarket (moyenne 7 jours connue).
+  require_recent_sales: true
+
+# Vérification des photos par IA (Claude Haiku). Désactivée si aucune clé.
+vision:
+  enabled: true
+  max_checks_per_run: 10
+
+# Pause entre deux requêtes Mercari (secondes), pour rester discret.
+request_delay_seconds: [2, 4]
