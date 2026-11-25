@@ -1,4 +1,7 @@
-"""Pipeline complet : recherche Mercari -> identification -> prix -> bénéfice -> alerte Discord avec lien Buyee."""
+"""Pipeline complet, en deux modes :
+- « demande » : cartes JP qui se vendent sur Cardmarket -> recherche de chacune sur Mercari ;
+- « offres » : recherches larges sur Mercari -> identification -> prix Cardmarket.
+Puis bénéfice net, seuil de marge et alerte Discord avec le lien Buyee."""
 from __future__ import annotations
 
 import argparse
@@ -12,6 +15,7 @@ from . import discord
 from .filters import good_condition, title_excluded
 from .http import Http
 from .mercari import Mercari
+from .demand import DemandList
 from .identify import Identifier
 from .models import Card, Deal
 from .profit import compute_profit, max_price_jpy_for_margin
@@ -109,18 +113,25 @@ class Scanner:
         ranked = sorted(best.values(), key=lambda t: t[2], reverse=True)
         return ranked[: self.cfg["max_cards_per_run"]]
 
-    def best_offer(self, card: Card, resale: float) -> Deal | None:
+    def best_offer(self, card: Card, resale: float, extra_keywords: list[str] | None = None) -> Deal | None:
         """Compare toutes les annonces de la carte (jusqu'à 10 pages) et garde la meilleure en bon état."""
         limit = self.max_price(resale)
-        listings = self.mercari.search(
-            card.search_keyword, self.cfg["pages_per_card"],
-            conditions=self.cfg["accepted_conditions"], price_max=limit, cheapest_first=True,
-        )
-        same = [
-            l for l in listings
-            if not title_excluded(l.title, self.cfg["exclude_keywords"])
-            and (c := self.identify(l.title)) is not None and c.card_id == card.card_id
-        ]
+        same: dict[str, object] = {}
+        for keyword in [card.search_keyword, *(extra_keywords or [])]:
+            listings = self.mercari.search(
+                keyword, self.cfg["pages_per_card"],
+                conditions=self.cfg["accepted_conditions"], price_max=limit, cheapest_first=True,
+            )
+            self.listings_seen += len(listings)
+            for l in listings:
+                if l.item_id in same or title_excluded(l.title, self.cfg["exclude_keywords"]):
+                    continue
+                c = self.identify(l.title)
+                if c is not None and c.card_id == card.card_id:
+                    same[l.item_id] = l
+            if same:
+                break  # le premier mot-clé a suffi
+        same = list(same.values())
         same.sort(key=lambda l: l.price_jpy)
         print(f"  {card.card_id} {card.name} : {len(same)} annonces identiques en bon état, revente {resale:.2f} €, prix max {limit} ¥")
         for l in same:
@@ -145,13 +156,42 @@ class Scanner:
             return Deal(card=card, listing=l, profit=profit, compared_listings=len(same), vision_note=note)
         return None
 
+    def demand_candidates(self, state: State) -> list[tuple[Card, float, list[str]]]:
+        """Mode demande : les cartes les plus demandées, parcourues par tranches au fil des passages."""
+        d = self.cfg["demand"]
+        cache = Path(self.cfg.get("_state_dir", "state")) / "catalogue_prix.json"
+        top = DemandList(self.dex, cache, d.get("cache_hours", 20)).top(
+            d["rarities"], self.cfg["min_resale_eur"], d.get("require_sold_yesterday", False),
+            d.get("min_trend_ratio", 0.8), d["list_size"],
+        )
+        if not top:
+            return []
+        start = state.demand_cursor % len(top)
+        n = min(d["cards_per_run"], len(top))
+        batch = [top[(start + i) % len(top)] for i in range(n)]
+        state.demand_cursor = (start + n) % len(top)
+        print(f"Mode demande : {len(top)} cartes demandées, cartes {start + 1} à {start + n} ce passage")
+        out = []
+        for dc in batch:
+            extra = [f"{dc.card.name} {dc.rarity_code} {dc.card.set_name}".strip()] if dc.rarity_code else []
+            out.append((dc.card, dc.resale, extra))
+        return out
+
     def run(self, state: State, webhook: str | None, dry_run: bool) -> list[Deal]:
         deals: list[Deal] = []
         self.update_fx()
-        for card, resale, _ in self.discover():
-            if not card.price:
+        modes = self.cfg.get("modes", ["offres"])
+        candidates: list[tuple[Card, float, list[str]]] = []
+        if "demande" in modes:
+            candidates += self.demand_candidates(state)
+        if "offres" in modes:
+            candidates += [(card, resale, []) for card, resale, _ in self.discover()]
+        done: set[str] = set()
+        for card, resale, extra in candidates:
+            if not card.price or card.card_id in done:
                 continue
-            deal = self.best_offer(card, resale)
+            done.add(card.card_id)
+            deal = self.best_offer(card, resale, extra)
             if not deal:
                 continue
             if state.already_alerted(deal.listing.item_id):
@@ -189,11 +229,13 @@ def main(argv: list[str] | None = None) -> int:
         cfg["pages_per_query"] = 1
         cfg["pages_per_card"] = 2
         cfg["max_cards_per_run"] = 2
+        cfg.setdefault("demand", {})["cards_per_run"] = 3
 
     if not webhook and not args.dry_run:
         print("DISCORD_WEBHOOK_URL absent : passage en mode test (rien n'est envoyé).")
         args.dry_run = True
 
+    cfg["_state_dir"] = str(Path(args.state).parent)
     state = State(Path(args.state))
     scanner = Scanner(cfg)
     deals = scanner.run(state, webhook, args.dry_run)

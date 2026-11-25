@@ -27,9 +27,11 @@ class TcgDex:
         return self._set_cards[set_id]
 
     def card_raw(self, card_id: str) -> dict:
-        if card_id not in self._cards:
-            self._cards[card_id] = self.http.get_json(f"{API}/cards/{card_id}")
-        return self._cards[card_id]
+        raw = self._cards.get(card_id)
+        if raw is None:
+            raw = self.http.get_json(f"{API}/cards/{card_id}")
+            self._cards[card_id] = raw
+        return raw
 
     def card(self, card_id: str) -> Card:
         raw = self.card_raw(card_id)
