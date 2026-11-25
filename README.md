@@ -2,7 +2,26 @@
 
 Ce robot cherche sur Mercari Japon (le site que Buyee revend) des cartes Pokémon japonaises **revendables avec au moins 35 % de bénéfice net** en France, et t'envoie l'annonce sur Discord avec le lien Buyee pour l'acheter. **Il n'achète jamais rien** : c'est toi qui décides.
 
-## Ce qu'il fait à chaque passage (toutes les 2 heures)
+## Deux modes, lancés à chaque passage
+
+**Mode « demande » (en premier)** : il part de ce qui se vend en Europe.
+1. Il récupère chaque jour les prix Cardmarket de **toutes les cartes japonaises** rares (SAR, AR, SR, UR, MUR, CHR, CSR…), soit environ 1 900 cartes, via TCGdex.
+2. Il garde celles qui se revendent au moins 25 €, qui ont des ventes récentes et dont le prix ne s'effondre pas.
+3. Il les classe par « demande » : le prix de revente (atténué, pour ne pas favoriser les vieilles cartes très chères et peu vendues), avec un bonus si la carte s'est vendue hier et si son prix monte. Les cartes au-dessus de 1 000 € sont ignorées (`max_resale_eur`).
+4. Il cherche chacune des 150 premières sur Mercari, 25 par passage. Le classement complet est parcouru en environ 12 heures.
+5. Ensuite, il applique les mêmes règles que le mode « offres » (étapes 5 à 8 ci-dessous).
+
+**Mode « offres »** : il part des annonces Mercari récentes (le fonctionnement décrit ci-dessous).
+
+Pour n'en garder qu'un, mets `modes: [demande]` ou `modes: [offres]` dans `config.yaml`.
+
+### D'où vient la « demande » et ses limites
+- Cardmarket ne publie **pas le nombre de ventes** ni le nombre de recherches. TCGdex recopie seulement ses prix : la tendance et les moyennes sur 1, 7 et 30 jours.
+- La demande est donc **estimée** : une moyenne sur 1 jour signifie que la carte s'est vendue hier. Une tendance au-dessus de la moyenne 30 jours signifie que le prix monte.
+- Les ventes eBay terminées ne sont pas utilisées. L'API officielle d'eBay qui les donne est réservée à ses partenaires, et les services qui les revendent sont payants (PokePriceTracker, environ 10 $/mois). On pourra les ajouter plus tard.
+- Leboncoin n'a pas d'historique des ventes.
+
+## Ce qu'il fait à chaque passage (mode « offres »)
 
 1. **Recherche large** sur Mercari (`ポケカ SAR`, `SR`, `AR`, `UR`, `CHR`...), sur les 3 premières pages des annonces les plus récentes.
 2. **Exclusion** des lots, boosters, cartes gradées (PSA, BGS...), versions étrangères, cartes abîmées (`ジャンク`, `傷あり`).
@@ -41,6 +60,8 @@ Tout se règle dans [`config.yaml`](config.yaml), sans toucher au code :
 
 | Réglage | Valeur actuelle | Rôle |
 |---|---|---|
+| `modes` | `[demande, offres]` | Modes lancés à chaque passage |
+| `demand.list_size` / `cards_per_run` | `150` / `25` | Taille du classement des cartes demandées, et cartes cherchées par passage |
 | `min_margin` | `0.35` | Marge nette minimale (35 %) |
 | `min_resale_eur` | `25` | Ignore les cartes qui valent moins de 25 € en France |
 | `search_queries` | SAR, SR, AR, UR, CHR | Recherches larges sur Mercari |

@@ -6,6 +6,9 @@ import requests
 from .filters import CONDITION_LABELS
 from .models import Deal
 
+# Au-delà de +150 %, l'écart est souvent dû à une autre version de la carte.
+SUSPICIOUS_MARGIN = 1.5
+
 
 def build_message(deal: Deal) -> dict:
     p = deal.profit
@@ -19,6 +22,8 @@ def build_message(deal: Deal) -> dict:
         f"État : {CONDITION_LABELS.get(l.condition or 0, 'inconnu')}",
         f"Annonce la moins chère parmi {deal.compared_listings} en bon état",
     ]
+    if p.margin >= SUSPICIOUS_MARGIN:
+        lines.insert(0, "⚠️ **Prix anormalement bas : vérifie bien que c'est la même version que sur Cardmarket.**")
     if deal.vision_note:
         lines.append(f"Photos (IA) : {deal.vision_note}")
     detail = (

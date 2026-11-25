@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from typing import Optional
+from urllib.parse import quote
 
 from .http import Http
 from .models import Card, CardPrice
@@ -23,13 +24,15 @@ class TcgDex:
 
     def set_detail(self, set_id: str) -> dict:
         if set_id not in self._set_cards:
-            self._set_cards[set_id] = self.http.get_json(f"{API}/sets/{set_id}")
+            self._set_cards[set_id] = self.http.get_json(f"{API}/sets/{quote(set_id, safe='')}")
         return self._set_cards[set_id]
 
     def card_raw(self, card_id: str) -> dict:
-        if card_id not in self._cards:
-            self._cards[card_id] = self.http.get_json(f"{API}/cards/{card_id}")
-        return self._cards[card_id]
+        raw = self._cards.get(card_id)
+        if raw is None:
+            raw = self.http.get_json(f"{API}/cards/{quote(card_id, safe='')}")
+            self._cards[card_id] = raw
+        return raw
 
     def card(self, card_id: str) -> Card:
         raw = self.card_raw(card_id)

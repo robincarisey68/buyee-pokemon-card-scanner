@@ -49,7 +49,9 @@ class FakeMercari:
 
 def make_scanner(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    s = Scanner(dict(CFG))
+    cfg = dict(CFG)
+    cfg["modes"] = ["offres"]
+    s = Scanner(cfg)
     s.mercari = FakeMercari()
     s.dex = FakeDex()
     s.identifier = Identifier(s.dex)

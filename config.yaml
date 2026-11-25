@@ -6,6 +6,37 @@ min_margin: 0.35
 # (les frais fixes mangent toute la marge en dessous).
 min_resale_eur: 25
 
+# Modes lancés à chaque passage :
+# - demande : part des cartes JP qui se vendent sur Cardmarket, puis cherche chacune sur Mercari
+# - offres  : recherches larges sur Mercari, puis vérifie si la carte se revend bien
+modes: [demande, offres]
+
+# Réglages du mode « demande »
+demand:
+  # Raretés surveillées (libellés TCGdex).
+  rarities:
+    - "Special illustration rare"   # SAR
+    - "Illustration rare"           # AR
+    - "Hyper rare"                  # UR
+    - "Mega Hyper Rare"             # MUR
+    - "Ultra Rare"                  # SR
+    - "Character Rare"              # CHR
+    - "Character Super Rare"        # CSR
+    - "Secret Rare"
+    - "Shiny Ultra Rare"
+  # Nombre de cartes gardées dans le classement des plus demandées.
+  list_size: 150
+  # Cartes cherchées sur Mercari à chaque passage (le classement est parcouru par tranches).
+  cards_per_run: 25
+  # Ignore les cartes qui se revendent plus cher que ça (budget, et cartes rares peu vendues).
+  max_resale_eur: 1000
+  # Exiger une vente Cardmarket hier (plus strict, moins de cartes).
+  require_sold_yesterday: false
+  # Ignore les cartes dont la tendance est sous 80 % de la moyenne 30 jours (prix en chute).
+  min_trend_ratio: 0.8
+  # Durée de validité du catalogue des prix (TCGdex se met à jour une fois par jour).
+  cache_hours: 20
+
 # Recherches larges sur Mercari (le site que Buyee revend). Le scanner lit ces recherches,
 # identifie chaque carte, puis compare toutes les annonces de la même carte.
 search_queries:
