@@ -2,9 +2,8 @@ name: Scan Buyee
 
 on:
   schedule:
-    # Toutes les 2 heures (heure UTC), pour rester dans les 2 000 minutes gratuites
-    # par mois de GitHub sur un dépôt privé.
-    - cron: "17 */2 * * *"
+    # Toutes les 30 minutes (dépôt public : minutes GitHub illimitées).
+    - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
       dry_run:

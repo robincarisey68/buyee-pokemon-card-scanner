@@ -8,7 +8,7 @@ Ce robot cherche sur Mercari Japon (le site que Buyee revend) des cartes Pokémo
 1. Il récupère chaque jour les prix Cardmarket de **toutes les cartes japonaises** rares (SAR, AR, SR, UR, MUR, CHR, CSR…), soit environ 1 900 cartes, via TCGdex.
 2. Il garde celles qui se revendent au moins 25 €, qui ont des ventes récentes et dont le prix ne s'effondre pas.
 3. Il les classe par « demande » : le prix de revente (atténué, pour ne pas favoriser les vieilles cartes très chères et peu vendues), avec un bonus si la carte s'est vendue hier et si son prix monte. Les cartes au-dessus de 1 000 € sont ignorées (`max_resale_eur`).
-4. Il cherche chacune des 150 premières sur Mercari, 25 par passage. Le classement complet est parcouru en environ 12 heures.
+4. Il cherche chacune des 150 premières sur Mercari, 25 par passage. Le classement complet est parcouru en environ 3 heures.
 5. Ensuite, il applique les mêmes règles que le mode « offres » (étapes 5 à 8 ci-dessous).
 
 **Mode « offres »** : il part des annonces Mercari récentes (le fonctionnement décrit ci-dessous).
@@ -52,7 +52,7 @@ Sans cette clé, le robot fonctionne quand même, mais sans regarder les photos.
 ### 4. Lancer un premier essai
 Onglet **Actions → Scan Buyee → Run workflow**. Coche « Mode test » pour voir le résultat dans les journaux sans rien recevoir sur Discord.
 
-Ensuite, le robot tourne seul toutes les 2 heures.
+Ensuite, le robot tourne seul toutes les 30 minutes.
 
 ## Régler le robot
 
@@ -77,7 +77,7 @@ Tout se règle dans [`config.yaml`](config.yaml), sans toucher au code :
 - **Cartes gradées (PSA...)** exclues, car le prix Cardmarket correspond à une carte non gradée.
 - **Source des annonces** : Buyee bloque les robots, donc le scanner lit Mercari directement grâce à la bibliothèque libre `mercapi` (la même que ton robot `buyee-robot-annonce`). Ce n'est pas une API officielle : elle peut casser si Mercari change son site. Chaque annonce Mercari a exactement la même référence sur Buyee, le lien envoyé est donc le bon.
 - **Taux de change** : taux du jour de la BCE, plus 3 % de marge de change (réglable avec `fx_markup`).
-- **Fréquence** : toutes les 2 heures, pour rester dans les 2 000 minutes gratuites par mois de GitHub (dépôt privé).
+- **Fréquence** : toutes les 30 minutes, pour rester dans les 2 000 minutes gratuites par mois de GitHub (dépôt privé).
 
 ## Pour les développeurs
 
