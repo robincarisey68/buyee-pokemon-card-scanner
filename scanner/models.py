@@ -6,19 +6,18 @@ from typing import Optional
 
 @dataclass
 class Listing:
-    """Une annonce Mercari vue depuis Buyee."""
+    """Une annonce Mercari, achetable via Buyee."""
 
     item_id: str
     url: str
     title: str
     price_jpy: int
     thumbnail: str = ""
-    # Taux affiché par Buyee (euros pour 1 yen), lu dans la page de recherche.
     eur_per_jpy: Optional[float] = None
-    # Rempli après lecture de la page de l'annonce.
     condition: Optional[int] = None
     seller_pays_shipping: Optional[bool] = None
     photos: list[str] = field(default_factory=list)
+    description: str = ""
     available: bool = True
 
 

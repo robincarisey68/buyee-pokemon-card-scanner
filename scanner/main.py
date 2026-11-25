@@ -1,26 +1,26 @@
-"""Pipeline complet : recherche Buyee -> identification -> prix -> bénéfice -> alerte Discord."""
+"""Pipeline complet : recherche Mercari -> identification -> prix -> bénéfice -> alerte Discord avec lien Buyee."""
 from __future__ import annotations
 
 import argparse
 import os
-import statistics
 import sys
 from pathlib import Path
 
 import yaml
 
 from . import discord
-from .buyee import Buyee
 from .filters import good_condition, title_excluded
 from .http import Http
+from .mercari import Mercari
 from .identify import Identifier
-from .models import Card, Deal, Listing
+from .models import Card, Deal
 from .profit import compute_profit, max_price_jpy_for_margin
 from .state import State
 from .tcgdex import TcgDex
 from .vision import VisionChecker
 
-DEFAULT_EUR_PER_JPY = 0.0061
+DEFAULT_EUR_PER_JPY = 0.0059
+FX_URL = "https://api.frankfurter.dev/v1/latest?base=JPY&symbols=EUR"
 
 
 def load_config(path: Path) -> dict:
@@ -31,8 +31,8 @@ def load_config(path: Path) -> dict:
 class Scanner:
     def __init__(self, cfg: dict, http: Http | None = None):
         self.cfg = cfg
-        self.http = http or Http(tuple(cfg.get("request_delay_seconds", [3, 6])))
-        self.buyee = Buyee(self.http)
+        self.http = http or Http()
+        self.mercari = Mercari(tuple(cfg.get("request_delay_seconds", [2, 4])))
         self.dex = TcgDex(self.http)
         self.identifier = Identifier(self.dex)
         v = cfg.get("vision", {})
@@ -67,17 +67,22 @@ class Scanner:
             resale, self.cfg["min_margin"], self.cfg["costs"], self.cfg["resale"], self.eur_per_jpy
         )
 
-    def update_fx(self, listings: list[Listing]) -> None:
-        rates = [l.eur_per_jpy for l in listings if l.eur_per_jpy]
-        if rates:
-            self.eur_per_jpy = statistics.median(rates)
+    def update_fx(self) -> None:
+        """Taux du jour (BCE via frankfurter.dev), majoré de la marge de change de Buyee."""
+        markup = 1 + self.cfg.get("fx_markup", 0.03)
+        try:
+            data = self.http.get_json(FX_URL)
+            self.eur_per_jpy = float(data["rates"]["EUR"]) * markup
+        except Exception as exc:
+            print(f"Taux de change indisponible ({exc}), valeur par défaut utilisée.")
+            self.eur_per_jpy = DEFAULT_EUR_PER_JPY * markup
+        print(f"Taux utilisé : 1000 ¥ = {self.eur_per_jpy * 1000:.2f} €")
 
     def discover(self) -> list[tuple[Card, float, int]]:
         """Recherches larges : repère les cartes dont au moins une annonce semble rentable."""
         best: dict[str, tuple[Card, float, int]] = {}
         for query in self.cfg["search_queries"]:
-            listings = self.buyee.search(query, self.cfg["pages_per_query"])
-            self.update_fx(listings)
+            listings = self.mercari.search(query, self.cfg["pages_per_query"])
             self.listings_seen += len(listings)
             stats = {"exclues": 0, "identifiées": 0, "avec prix FR": 0, "sous le prix max": 0}
             for l in listings:
@@ -106,20 +111,26 @@ class Scanner:
 
     def best_offer(self, card: Card, resale: float) -> Deal | None:
         """Compare toutes les annonces de la carte (jusqu'à 10 pages) et garde la meilleure en bon état."""
-        listings = self.buyee.search(card.search_keyword, self.cfg["pages_per_card"])
+        limit = self.max_price(resale)
+        listings = self.mercari.search(
+            card.search_keyword, self.cfg["pages_per_card"],
+            conditions=self.cfg["accepted_conditions"], price_max=limit, cheapest_first=True,
+        )
         same = [
             l for l in listings
             if not title_excluded(l.title, self.cfg["exclude_keywords"])
             and (c := self.identify(l.title)) is not None and c.card_id == card.card_id
         ]
         same.sort(key=lambda l: l.price_jpy)
-        limit = self.max_price(resale)
-        print(f"  {card.card_id} {card.name} : {len(same)} annonces identiques, revente {resale:.2f} €, prix max {limit} ¥")
+        print(f"  {card.card_id} {card.name} : {len(same)} annonces identiques en bon état, revente {resale:.2f} €, prix max {limit} ¥")
         for l in same:
             if l.price_jpy > limit:
                 break
-            self.buyee.load_item(l)
+            self.mercari.load_item(l)
             if not l.available or not good_condition(l, self.cfg["accepted_conditions"]):
+                continue
+            if title_excluded(l.description, self.cfg.get("exclude_description_keywords", [])):
+                print(f"    écartée (description) : {l.url}")
                 continue
             profit = compute_profit(l, resale, self.cfg["costs"], self.cfg["resale"], self.eur_per_jpy)
             if profit.margin < self.cfg["min_margin"]:
@@ -136,6 +147,7 @@ class Scanner:
 
     def run(self, state: State, webhook: str | None, dry_run: bool) -> list[Deal]:
         deals: list[Deal] = []
+        self.update_fx()
         for card, resale, _ in self.discover():
             if not card.price:
                 continue
@@ -188,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
     state.save()
     print(f"Terminé : {len(deals)} bonne(s) affaire(s), {scanner.listings_seen} annonces lues.")
     if scanner.listings_seen == 0:
-        print("ERREUR : aucune annonce lue sur Buyee (site bloqué ou page modifiée).")
+        print("ERREUR : aucune annonce lue sur Mercari.")
         return 2
     return 0
 

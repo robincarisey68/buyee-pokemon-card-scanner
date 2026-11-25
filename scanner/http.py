@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import random
 import time
 from typing import Optional
 
@@ -13,26 +12,14 @@ USER_AGENT = (
 
 
 class Http:
-    """Session HTTP partagée, avec une pause aléatoire entre deux pages Buyee."""
+    """Session HTTP partagée (TCGdex, taux de change), avec quelques nouvelles tentatives."""
 
-    def __init__(self, delay_range: tuple[float, float] = (3, 6), timeout: float = 30):
+    def __init__(self, timeout: float = 30):
         self.session = requests.Session()
         self.session.headers.update(
             {"User-Agent": USER_AGENT, "Accept-Language": "fr-FR,fr;q=0.9,en;q=0.8"}
         )
-        self.delay_range = delay_range
         self.timeout = timeout
-        self._last_polite: float = 0.0
-
-    def get_polite(self, url: str, params: Optional[dict] = None) -> requests.Response:
-        """GET vers Buyee, en respectant une pause entre deux requêtes."""
-        wait = random.uniform(*self.delay_range) - (time.monotonic() - self._last_polite)
-        if wait > 0 and self._last_polite:
-            time.sleep(wait)
-        try:
-            return self._get(url, params)
-        finally:
-            self._last_polite = time.monotonic()
 
     def get_json(self, url: str, params: Optional[dict] = None):
         resp = self._get(url, params)

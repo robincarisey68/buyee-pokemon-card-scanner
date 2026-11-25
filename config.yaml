@@ -6,7 +6,7 @@ min_margin: 0.35
 # (les frais fixes mangent toute la marge en dessous).
 min_resale_eur: 25
 
-# Recherches larges sur Buyee (Mercari). Le scanner lit ces recherches,
+# Recherches larges sur Mercari (le site que Buyee revend). Le scanner lit ces recherches,
 # identifie chaque carte, puis compare toutes les annonces de la même carte.
 search_queries:
   - "ポケカ SAR"
@@ -15,9 +15,9 @@ search_queries:
   - "ポケカ UR"
   - "ポケモンカード SAR"
   - "ポケカ CHR"
-# Pages lues par recherche large (environ 100 annonces par page).
+# Pages lues par recherche large (les annonces les plus récentes d'abord).
 pages_per_query: 3
-# Pages lues pour comparer toutes les annonces d'une carte précise.
+# Pages lues pour comparer toutes les annonces d'une carte précise (les moins chères d'abord).
 pages_per_card: 10
 # Nombre maximum de cartes comparées en détail à chaque passage.
 max_cards_per_run: 8
@@ -48,6 +48,17 @@ exclude_keywords:
   - "中国"
   - "海外"
 
+# Mots qui excluent une annonce s'ils apparaissent dans la description.
+exclude_description_keywords:
+  - "傷あり"
+  - "白欠け"
+  - "折れ"
+  - "凹み"
+  - "ジャンク"
+
+# Marge de change prise par Buyee / ta carte bancaire, ajoutée au taux du jour (3 %).
+fx_markup: 0.03
+
 # Coûts d'achat (à ajuster avec tes vraies factures Buyee)
 costs:
   # Frais de service Buyee par article (yens).
@@ -77,5 +88,5 @@ vision:
   enabled: true
   max_checks_per_run: 10
 
-# Pause entre deux pages Buyee (secondes), pour rester discret.
-request_delay_seconds: [3, 6]
+# Pause entre deux requêtes Mercari (secondes), pour rester discret.
+request_delay_seconds: [2, 4]

@@ -1,14 +1,14 @@
 # Scanner Buyee → France (cartes Pokémon japonaises)
 
-Ce robot cherche sur Buyee (Mercari Japon) des cartes Pokémon japonaises **revendables avec au moins 35 % de bénéfice net** en France, et t'envoie l'annonce sur Discord. **Il n'achète jamais rien** : c'est toi qui décides.
+Ce robot cherche sur Mercari Japon (le site que Buyee revend) des cartes Pokémon japonaises **revendables avec au moins 35 % de bénéfice net** en France, et t'envoie l'annonce sur Discord avec le lien Buyee pour l'acheter. **Il n'achète jamais rien** : c'est toi qui décides.
 
 ## Ce qu'il fait à chaque passage (toutes les 2 heures)
 
-1. **Recherche large** sur Buyee/Mercari (`ポケカ SAR`, `SR`, `AR`, `UR`, `CHR`...), sur 3 pages par recherche.
+1. **Recherche large** sur Mercari (`ポケカ SAR`, `SR`, `AR`, `UR`, `CHR`...), sur les 3 premières pages des annonces les plus récentes.
 2. **Exclusion** des lots, boosters, cartes gradées (PSA, BGS...), versions étrangères, cartes abîmées (`ジャンク`, `傷あり`).
 3. **Identification** de chaque carte à partir du titre japonais : nom + numéro (`201/165`) + set (`SV2a`, `ポケモンカード151`), ou nom + rareté + set. En cas de doute, la carte est ignorée plutôt que mal identifiée.
 4. **Prix de revente en France** : prix Cardmarket de la **version japonaise** (API gratuite TCGdex, mise à jour chaque jour). Le robot garde le prix le plus prudent entre la tendance, la moyenne 7 jours et la moyenne 30 jours, et exige des ventes récentes.
-5. **Comparaison** : pour chaque carte prometteuse, il lit jusqu'à **10 pages** d'annonces de cette carte précise, garde seulement le **bon état** (neuf, quasi neuf, sans rayures visibles) et prend la **moins chère**.
+5. **Comparaison** : pour chaque carte prometteuse, il lit jusqu'à **10 pages** d'annonces de cette carte précise, garde seulement le **bon état** (neuf, quasi neuf, sans rayures visibles), écarte les descriptions qui signalent un défaut (`白欠け`, `折れ`...) et prend la **moins chère**.
 6. **Calcul du bénéfice net**, tous frais compris : prix, frais Buyee, port au Japon, port international, taxe UE de 3 €, TVA 20 %, commission Cardmarket, envoi à l'acheteur.
 7. **Vérification des photos par IA** (Claude Haiku, facultatif) : bonne carte, une seule carte, pas de défaut visible.
 8. **Alerte Discord** avec la photo, le lien Buyee, le lien Cardmarket et le détail des frais. Une même annonce n'est jamais envoyée deux fois.
@@ -54,7 +54,8 @@ Tout se règle dans [`config.yaml`](config.yaml), sans toucher au code :
 - **Frais Buyee et port** : ce sont des estimations par défaut. Après ta première commande, mets tes vrais chiffres dans `config.yaml`.
 - **Mercari seulement** pour l'instant. Yahoo Enchères pourra être ajouté ensuite.
 - **Cartes gradées (PSA...)** exclues, car le prix Cardmarket correspond à une carte non gradée.
-- **Buyee** n'a pas d'API officielle. Le robot lit les pages lentement (3 à 6 secondes entre deux pages), sans être connecté à ton compte.
+- **Source des annonces** : Buyee bloque les robots, donc le scanner lit Mercari directement grâce à la bibliothèque libre `mercapi` (la même que ton robot `buyee-robot-annonce`). Ce n'est pas une API officielle : elle peut casser si Mercari change son site. Chaque annonce Mercari a exactement la même référence sur Buyee, le lien envoyé est donc le bon.
+- **Taux de change** : taux du jour de la BCE, plus 3 % de marge de change (réglable avec `fx_markup`).
 - **Fréquence** : toutes les 2 heures, pour rester dans les 2 000 minutes gratuites par mois de GitHub (dépôt privé).
 
 ## Pour les développeurs
