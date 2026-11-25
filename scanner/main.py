@@ -162,7 +162,7 @@ class Scanner:
         cache = Path(self.cfg.get("_state_dir", "state")) / "catalogue_prix.json"
         top = DemandList(self.dex, cache, d.get("cache_hours", 20)).top(
             d["rarities"], self.cfg["min_resale_eur"], d.get("require_sold_yesterday", False),
-            d.get("min_trend_ratio", 0.8), d["list_size"],
+            d.get("min_trend_ratio", 0.8), d["list_size"], d.get("max_resale_eur", 0),
         )
         if not top:
             return []

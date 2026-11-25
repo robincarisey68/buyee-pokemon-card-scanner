@@ -47,13 +47,15 @@ class DemandCard:
 
 
 def demand_score(card: Card, resale: float) -> tuple[float, bool, float]:
-    """Score = prix de revente pondéré par la régularité des ventes et la tendance."""
+    """Score = racine du prix de revente × régularité des ventes × tendance.
+
+    La racine évite que quelques cartes anciennes très chères (et peu vendues) écrasent le classement."""
     p = card.price
     sold_yesterday = bool(p.avg1)
     regularity = 1.0 + (0.5 if sold_yesterday else 0.0)
     trend_ratio = (p.trend / p.avg30) if (p.trend and p.avg30) else 1.0
     momentum = min(max(trend_ratio, 0.7), 1.3)
-    return resale * regularity * momentum, sold_yesterday, round(trend_ratio, 2)
+    return (resale ** 0.5) * regularity * momentum, sold_yesterday, round(trend_ratio, 2)
 
 
 class DemandList:
@@ -100,7 +102,9 @@ class DemandList:
             raws = [r for r in pool.map(fetch, ids) if r]
         slim = [
             {k: r.get(k) for k in ("id", "localId", "name", "rarity", "image", "set", "pricing")}
-            for r in raws if (r.get("pricing") or {}).get("cardmarket")
+            for r in raws
+            # Le filtre de TCGdex est large : on ne garde que les raretés demandées exactement.
+            if (r.get("pricing") or {}).get("cardmarket") and r.get("rarity") in rarities
         ]
         print(f"Catalogue des prix : {len(ids)} cartes lues, {len(slim)} avec un prix Cardmarket")
         if slim:
@@ -108,7 +112,7 @@ class DemandList:
         return slim
 
     def top(self, rarities: list[str], min_resale: float, require_sold_yesterday: bool,
-            min_trend_ratio: float, limit: int) -> list[DemandCard]:
+            min_trend_ratio: float, limit: int, max_resale: float = 0) -> list[DemandCard]:
         result: list[DemandCard] = []
         for raw in self.fetch_catalog(rarities):
             card = card_from_raw(raw)
@@ -116,7 +120,7 @@ class DemandList:
             if not p or not p.has_recent_sales():
                 continue
             resale = p.resale_estimate()
-            if not resale or resale < min_resale:
+            if not resale or resale < min_resale or (max_resale and resale > max_resale):
                 continue
             score, sold_yesterday, ratio = demand_score(card, resale)
             if require_sold_yesterday and not sold_yesterday:

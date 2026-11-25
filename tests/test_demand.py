@@ -33,12 +33,13 @@ def test_top_filters_and_ranks(tmp_path):
     falling = dict(CARDS["M6-113"])
     falling["pricing"] = {"cardmarket": {"trend": 200, "avg7": 300, "avg30": 419, "avg1": 210, "idProduct": 9}}
     write_cache(cache, [CARDS["SV2a-201"], CARDS["M6-110"], CARDS["SV2a-185"], CARDS["M6-058"], falling])
-    top = DemandList(FakeDex(), cache).top(["x"], min_resale=25, require_sold_yesterday=False,
-                                           min_trend_ratio=0.8, limit=10)
+    rarities = ["Special illustration rare", "Ultra Rare", "Double rare", "Mega Hyper Rare"]
+    top = DemandList(FakeDex(), cache).top(rarities, min_resale=25, require_sold_yesterday=False,
+                                           min_trend_ratio=0.8, limit=10, max_resale=1000)
     ids = [d.card.card_id for d in top]
-    # Les cartes sous 25 € et celle dont le prix s'effondre sont écartées ; la plus chère est en tête.
-    assert ids == ["SV2a-201", "M6-110"]
-    assert top[1].rarity_code == "SAR"
+    # Cartes sous 25 € et prix qui s'effondre écartés ; M6-110 (en hausse) passe devant SV2a-201 (en baisse).
+    assert ids == ["M6-110", "SV2a-201"]
+    assert top[0].rarity_code == "SAR"
 
 
 def test_demand_mode_end_to_end(monkeypatch, tmp_path):
@@ -55,10 +56,28 @@ def test_demand_mode_end_to_end(monkeypatch, tmp_path):
     s.update_fx = lambda: setattr(s, "eur_per_jpy", 0.0061)
     state = State(tmp_path / "state.json")
 
-    # 1er passage : la carte n°1 du classement (SV2a-201, trop chère sur Mercari) -> rien.
-    assert s.run(state, webhook=None, dry_run=True) == []
-    assert state.demand_cursor == 1
-    # 2e passage : la carte suivante (M6-110) -> l'annonce m2 à 15 000 ¥.
+    # 1er passage : la carte n°1 du classement (M6-110) -> l'annonce m2 à 15 000 ¥.
     deals = s.run(state, webhook=None, dry_run=True)
     assert [d.listing.item_id for d in deals] == ["m2"]
+    assert state.demand_cursor == 1
+    # 2e passage : la carte suivante (SV2a-201, trop chère sur Mercari) -> rien, et retour au début.
+    assert s.run(state, webhook=None, dry_run=True) == []
     assert state.demand_cursor == 0
+
+
+def test_catalog_keeps_only_requested_rarities(tmp_path):
+    class Http:
+        def get_json(self, url):
+            return [{"id": "SV2a-201"}, {"id": "MC-764"}]
+
+    class Dex:
+        http = Http()
+
+        def card_raw(self, card_id):
+            if card_id == "MC-764":
+                return {"id": "MC-764", "name": "ピカチュウex", "rarity": "None",
+                        "set": {"id": "MC"}, "pricing": {"cardmarket": {"trend": 900}}}
+            return CARDS[card_id]
+
+    cards = DemandList(Dex(), tmp_path / "c.json").fetch_catalog(["Special illustration rare"])
+    assert [c["id"] for c in cards] == ["SV2a-201"]

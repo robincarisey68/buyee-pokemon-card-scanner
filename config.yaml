@@ -28,6 +28,8 @@ demand:
   list_size: 150
   # Cartes cherchées sur Mercari à chaque passage (le classement est parcouru par tranches).
   cards_per_run: 25
+  # Ignore les cartes qui se revendent plus cher que ça (budget, et cartes rares peu vendues).
+  max_resale_eur: 1000
   # Exiger une vente Cardmarket hier (plus strict, moins de cartes).
   require_sold_yesterday: false
   # Ignore les cartes dont la tendance est sous 80 % de la moyenne 30 jours (prix en chute).

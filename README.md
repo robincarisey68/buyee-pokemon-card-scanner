@@ -7,7 +7,7 @@ Ce robot cherche sur Mercari Japon (le site que Buyee revend) des cartes Pokémo
 **Mode « demande » (en premier)** : il part de ce qui se vend en Europe.
 1. Il récupère chaque jour les prix Cardmarket de **toutes les cartes japonaises** rares (SAR, AR, SR, UR, MUR, CHR, CSR…), soit environ 1 900 cartes, via TCGdex.
 2. Il garde celles qui se revendent au moins 25 €, qui ont des ventes récentes et dont le prix ne s'effondre pas.
-3. Il les classe par « demande » : le prix de revente, avec un bonus si la carte s'est vendue hier et si son prix monte.
+3. Il les classe par « demande » : le prix de revente (atténué, pour ne pas favoriser les vieilles cartes très chères et peu vendues), avec un bonus si la carte s'est vendue hier et si son prix monte. Les cartes au-dessus de 1 000 € sont ignorées (`max_resale_eur`).
 4. Il cherche chacune des 150 premières sur Mercari, 25 par passage. Le classement complet est parcouru en environ 12 heures.
 5. Ensuite, il applique les mêmes règles que le mode « offres » (étapes 5 à 8 ci-dessous).
 
