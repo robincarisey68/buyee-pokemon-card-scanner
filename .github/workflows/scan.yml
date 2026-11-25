@@ -3,6 +3,8 @@ name: Scan Buyee
 on:
   schedule:
     # Toutes les 30 minutes (dépôt public : minutes GitHub illimitées).
+    # GitHub déclenche parfois ces horaires en retard ou pas du tout :
+    # chaque scan relance donc lui-même le suivant (étape « Relancer » plus bas).
     - cron: "7,37 * * * *"
   workflow_dispatch:
     inputs:
@@ -11,6 +13,10 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: read
+  actions: write
+
 concurrency:
   group: scan
   cancel-in-progress: false
@@ -18,7 +24,7 @@ concurrency:
 jobs:
   scan:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -52,3 +58,24 @@ jobs:
         with:
           path: state
           key: scanner-state-${{ github.run_id }}
+
+      # Attend le prochain créneau (h07 ou h37) puis relance un scan,
+      # sauf en mode test ou si un autre scan est déjà prévu.
+      - name: Relancer le scan suivant
+        if: ${{ !cancelled() && inputs.dry_run != true }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          now=$(date -u +%s)
+          min=$(( (now / 60) % 60 ))
+          if [ $min -lt 7 ]; then next=7; elif [ $min -lt 37 ]; then next=37; else next=67; fi
+          wait=$(( (next - min) * 60 - (now % 60) ))
+          echo "Prochain scan dans $((wait / 60)) min"
+          sleep $wait
+          others=$(gh run list -R "$GITHUB_REPOSITORY" --workflow scan.yml --json databaseId,status \
+            --jq "[.[] | select(.status != \"completed\" and .databaseId != $GITHUB_RUN_ID)] | length")
+          if [ "$others" -gt 0 ]; then
+            echo "Un scan est déjà prévu, pas de relance."
+          else
+            gh workflow run scan.yml -R "$GITHUB_REPOSITORY" --ref "$GITHUB_REF_NAME"
+          fi
