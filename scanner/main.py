@@ -39,6 +39,7 @@ class Scanner:
         self.vision = VisionChecker(v.get("enabled", True), v.get("max_checks_per_run", 10))
         self.eur_per_jpy = DEFAULT_EUR_PER_JPY
         self._id_cache: dict[str, Card | None] = {}
+        self.listings_seen = 0
 
     # --- étapes ---------------------------------------------------------
     def identify(self, title: str) -> Card | None:
@@ -77,6 +78,7 @@ class Scanner:
         for query in self.cfg["search_queries"]:
             listings = self.buyee.search(query, self.cfg["pages_per_query"])
             self.update_fx(listings)
+            self.listings_seen += len(listings)
             stats = {"exclues": 0, "identifiées": 0, "avec prix FR": 0, "sous le prix max": 0}
             for l in listings:
                 if title_excluded(l.title, self.cfg["exclude_keywords"]):
@@ -181,9 +183,13 @@ def main(argv: list[str] | None = None) -> int:
         args.dry_run = True
 
     state = State(Path(args.state))
-    deals = Scanner(cfg).run(state, webhook, args.dry_run)
+    scanner = Scanner(cfg)
+    deals = scanner.run(state, webhook, args.dry_run)
     state.save()
-    print(f"Terminé : {len(deals)} bonne(s) affaire(s).")
+    print(f"Terminé : {len(deals)} bonne(s) affaire(s), {scanner.listings_seen} annonces lues.")
+    if scanner.listings_seen == 0:
+        print("ERREUR : aucune annonce lue sur Buyee (site bloqué ou page modifiée).")
+        return 2
     return 0
 
 

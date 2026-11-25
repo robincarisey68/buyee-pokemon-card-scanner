@@ -116,6 +116,7 @@ def parse_item(html: str, listing: Listing) -> Listing:
 class Buyee:
     def __init__(self, http: Http):
         self.http = http
+        self.failures = 0
 
     def search(self, keyword: str, pages: int, condition: Optional[int] = None) -> list[Listing]:
         results: list[Listing] = []
@@ -126,9 +127,18 @@ class Buyee:
                 params["condition"] = condition
             resp = self.http.get_polite(SEARCH_URL, params=params)
             if resp.status_code != 200:
+                print(f"  [buyee] « {keyword} » page {page} : HTTP {resp.status_code} ({len(resp.text)} octets)")
+                self.failures += 1
                 break
-            page_items = [l for l in parse_search(resp.text) if l.item_id not in seen]
+            parsed = parse_search(resp.text)
+            page_items = [l for l in parsed if l.item_id not in seen]
             if not page_items:
+                if page == 1 and not parsed:
+                    title = re.search(r"<title>(.*?)</title>", resp.text, re.S)
+                    print(f"  [buyee] « {keyword} » : aucune annonce lue (page « {title.group(1).strip()[:80] if title else '?'} », "
+                          f"{len(resp.text)} octets, url {resp.url})")
+                    body = BeautifulSoup(resp.text, "html.parser").get_text(" ", strip=True)
+                    print(f"  [buyee] début de la page : {body[:300]}")
                 break
             for item in page_items:
                 seen.add(item.item_id)
